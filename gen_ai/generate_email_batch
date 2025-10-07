@@ -1,0 +1,174 @@
+import os
+import json
+from google import genai
+from google.genai import types
+
+from dotenv import load_dotenv
+load_dotenv() 
+
+
+
+def get_candidate_email_schema():
+    """Defines the structure for a single candidate's email output."""
+    return types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "candidate_name": types.Schema(
+                type=types.Type.STRING,
+                description="The name of the candidate this email belongs to."
+            ),
+            "subject": types.Schema(
+                type=types.Type.STRING,
+                description="The professional subject line for the email."
+            ),
+            "body": types.Schema(
+                type=types.Type.STRING,
+                description="The full body of the professional email, using paragraphs and newlines for readability."
+            )
+        },
+        required=["candidate_name", "subject", "body"]
+    )
+
+def get_batch_response_schema():
+    """Defines the strict JSON schema for the batch email output (an array of emails)."""
+    return types.Schema(
+        type=types.Type.ARRAY,
+        description="A list of generated email objects, one for each candidate provided in the prompt.",
+        items=get_candidate_email_schema(),
+        max_items=10 
+    )
+
+
+def clean_llm_response(response_text):
+    """
+    Cleans LLM response to ensure valid JSON by isolating content 
+    between the first '[' and the last ']'.
+    """
+    start = response_text.find('[')
+    end = response_text.rfind(']')
+
+    if start == -1 or end == -1 or end < start:
+        raise ValueError("Invalid JSON array format: Brackets not found or mismatched.")
+
+    json_str = response_text[start : end + 1]
+    return json_str
+
+
+
+def generate_batch_feedback_emails(candidate_results_list, job_title):
+    """
+    Generates structured, personalized feedback emails for a batch of candidates
+    using a single Gemini API call.
+    """
+    if not os.getenv("GEMINI_API_KEY"):
+         return {"error": "GEMINI_API_KEY is not set in .env file."}
+
+    try:
+        client = genai.Client() 
+    except Exception as e:
+        return {"error": f"Error initializing Gemini client: {e}"}
+
+    candidate_data_list = []
+    
+    for candidate in candidate_results_list:
+        match_score = candidate["match_score"]
+        
+        if match_score >= 80:
+            tone = "HIGHLY POSITIVE (Express strong interest and next steps)"
+            closing_message = "We are highly impressed and would like to proceed with scheduling an interview. Please reply to this email to confirm your availability."
+        elif match_score >= 50:
+            tone = "BALANCED (Acknowledge strengths, outline the required gap)"
+            closing_message = "We encourage you to use the feedback below for future applications. We may contact you for other roles."
+        else:
+            tone = "CONSTRUCTIVE (Gently decline, provide clear, actionable feedback)"
+            closing_message = "While we move forward with other candidates at this time, we encourage you to gain the noted experience and apply for future roles."
+        
+        candidate_data_list.append(f"""
+        --- Candidate: {candidate['candidate_name']} ---
+        - Match Score: {match_score} (Tone: {tone})
+        - Match Summary: "{candidate['summary_remark']}"
+        - Missing Skills: {', '.join(candidate['missing_skills']) if candidate['missing_skills'] else 'None explicitly listed.'}
+        - Final Closing Message: "{closing_message}"
+        """)
+
+    all_candidates_data = "\n".join(candidate_data_list)
+
+    prompt = f"""
+    You are an AI recruiter agent. Your task is to generate personalized, professional feedback emails for a batch of candidates applying for the position: **{job_title}**.
+
+    Analyze the details provided for each candidate and generate the required email.
+
+    **GLOBAL EMAIL STRUCTURE REQUIREMENTS:**
+    1.  **Do NOT show the Match Score** in the email body.
+    2.  **Salutation:** Start with "Dear [Candidate Name]".
+    3.  **Provide Context:** Use the "Match Summary" to justify the result.
+    4.  **Constructive Feedback:** Explicitly list the "Missing Skills" as areas for development.
+    5.  **Closing & Signature:** The email body MUST end with the candidate's specific "Final Closing Message," followed by: "\\n\\nSincerely,\\n\\nThe Hiring Team"
+
+    **BATCH CANDIDATE DATA (Process all candidates below):**
+    {all_candidates_data}
+
+    Output the result strictly as a JSON array (list) where each object strictly follows the provided schema and contains the generated email for one candidate.
+    """
+
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.7, 
+                response_mime_type="application/json", 
+                response_schema=get_batch_response_schema(),
+            )
+        )
+        
+        cleaned_json_str = clean_llm_response(response.text)
+        return json.loads(cleaned_json_str)
+
+    except json.JSONDecodeError as e:
+        return {"error": f"Failed to decode JSON response from API. Raw output: {response.text}"}
+    except Exception as e:
+        return {"error": f"An error occurred during API call: {e}"}
+
+
+if __name__ == '__main__':
+    job_title = "Senior Cloud Solutions Architect"
+    batch_results = [
+        {
+            "candidate_name": "Alex Chen",
+            "match_score": 65,
+            "summary_remark": "Excellent technical alignment, especially in cloud architecture and Terraform.",
+            "missing_skills": ["CI/CD pipeline management", "Multi-cloud governance"]
+        },
+        {
+            "candidate_name": "Maria Rodriguez",
+            "match_score": 85,
+            "summary_remark": "Outstanding background with extensive AWS and Kubernetes experience. A perfect fit for our senior role requirements.",
+            "missing_skills": []
+        },
+        {
+            "candidate_name": "Ben Smith",
+            "match_score": 30,
+            "summary_remark": "Foundational IT knowledge, but lacks the specialized cloud architecture experience required.",
+            "missing_skills": ["AWS/GCP certification", "Terraform/CloudFormation", "Container orchestration (Kubernetes)"]
+        }
+    ]
+    
+    print("--- Generating Batch Personalized Feedback Emails with Gemini API ---")
+    
+    email_outputs = generate_batch_feedback_emails(batch_results, job_title)
+
+    print("\n" + "="*70)
+    print(f"Generated {len(email_outputs)} Emails for Job: {job_title}")
+    print("="*70)
+    
+    if "error" in email_outputs:
+        print(f"**Error:** {email_outputs['error']}")
+    elif isinstance(email_outputs, list):
+        for email_output in email_outputs:
+            print(f"\n--- Candidate: {email_output.get('candidate_name')} ---")
+            print(f"Subject: {email_output.get('subject')}")
+            print("-" * 50)
+            print(email_output.get('body'))
+    else:
+        print("Unexpected API output format.")
