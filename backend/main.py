@@ -13,8 +13,8 @@ if project_root not in sys.path:
 try:
     from gen_ai.generate_jd import generate_job_description 
     from gen_ai.score_matching import match_and_score_gemini 
-    from gen_ai.generate_email_1 import generate_batch_feedback_emails 
-    from gen_ai.generate_email import generate_feedback_email 
+    from gen_ai.generate_email_batch import generate_batch_feedback_emails 
+    from gen_ai.generate_email_single import generate_feedback_email 
 except ImportError as e:
     print(f"FATAL: Could not import AI logic. Check Python path and gen_ai structure: {e}")
     sys.exit(1)
