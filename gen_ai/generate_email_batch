@@ -103,12 +103,23 @@ def generate_batch_feedback_emails(candidate_results_list, job_title):
     2.  **Salutation:** Start with "Dear [Candidate Name]".
     3.  **Provide Context:** Use the "Match Summary" to justify the result.
     4.  **Constructive Feedback:** Explicitly list the "Missing Skills" as areas for development.
-    5.  **Closing & Signature:** The email body MUST end with the candidate's specific "Final Closing Message," followed by: "\\n\\nSincerely,\\n\\nThe Hiring Team"
+    5.  **Closing:** Use the closing line: "{closing_message}"
+    6.  **Signature Requirements:**The email body must end with the final message, followed by the text: 
+    "\\n\\nSincerely,\\n\\nThe Hiring Team"
+    (Note: You must use the JSON newline escape sequence '\\n' to separate the lines.)
 
     **BATCH CANDIDATE DATA (Process all candidates below):**
     {all_candidates_data}
 
     Output the result strictly as a JSON array (list) where each object strictly follows the provided schema and contains the generated email for one candidate.
+
+    **EXAMPLE (Score 65% - Professional and Balanced Tone):**
+    ```json
+    {{
+      "subject": "Update on Your Application for Senior Cloud Solutions Architect",
+      "body": "Dear Alex Chen,\\n\\nThank you for your interest in the Senior Cloud Solutions Architect position and for taking the time to submit your application. \\n\\nYour profile showed excellent technical alignment, especially in cloud architecture and Terraform. This strong foundation is highly commendable.\\n\\nTo fully align with the senior requirements of this role, we recommend focusing on gaining further experience in specific areas. The critical skills currently missing include CI/CD pipeline management, multi-cloud governance experience, and advanced Python scripting for automation.\\n\\nWe encourage you to use the feedback below for future applications. We may contact you for other roles.\\n\\nSincerely,\\n\\nThe Hiring Team"
+    }}
+    ```
     """
 
     try:
