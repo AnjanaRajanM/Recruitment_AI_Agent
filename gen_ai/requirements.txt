@@ -1,11 +1,1 @@
-streamlit
-fastapi
-uvicorn
-google-genai
-python-dotenv
-requests
-pydantic
-pandas
-docx2txt
-PyPDF2
-spacy
+
