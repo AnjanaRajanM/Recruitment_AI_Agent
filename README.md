@@ -34,7 +34,7 @@ The application provides a comprehensive end-to-end solution:
 
 ***
 
-## AI Logic and Optimization (Mandatory Explanation)
+## AI Logic and Optimization 
 
 The architecture is built on a **Hybrid LLM Strategy** to ensure the best balance between speed, cost, and reliability.
 
