@@ -97,7 +97,7 @@ def get_matching_data_gemini(resume_text, jd_text):
     """
     Calls the FastAPI endpoint for resume matching and maps its output.
     """
-    st.text(f"Analyzing {len(resume_text)} characters...")
+    st.text(f"Analyzing {len(resume_text)} characters.")
 
     url = f"{API_BASE_URL}/match-resume"
     payload = {
@@ -307,10 +307,10 @@ if st.session_state.job_description_text:
             st.warning("You have uploaded more than 10 files. Only the first 10 will be processed.")
             uploaded_resumes = uploaded_resumes[:10]
             
-        if st.button(f"Analyze {len(uploaded_resumes)} Resumes", type="primary"):
+        if st.button(f"Analyze {len(uploaded_resumes)} Resume(s)", type="primary"):
             st.session_state.resume_results = [] 
             
-            with st.spinner(f"Processing and matching {len(uploaded_resumes)} resumes."):
+            with st.spinner(f"Processing and matching {len(uploaded_resumes)} resume(s)."):
                 jd_text = st.session_state.job_description_text
                 
                 for i, file in enumerate(uploaded_resumes):
@@ -377,17 +377,17 @@ if st.session_state.job_description_text:
             if not candidates_for_batch:
                 st.warning("No candidate results to process.")
             else:
-                with st.spinner(f'Generating professional emails for {len(candidates_for_batch)} candidates in one batch...'):
+                with st.spinner(f'Generating professional e-mails for {len(candidates_for_batch)} candidates in one batch.'):
                     batch_emails_result = generate_batch_emails_via_api(
                         candidate_results_list=candidates_for_batch,
                         job_title=job_title_for_email
                     )
                 
                 if "error" in batch_emails_result:
-                    st.error(f"Batch Email Generation Error: {batch_emails_result['error']}")
+                    st.error(f"Batch E-mail Generation Error: {batch_emails_result['error']}")
                     st.session_state.batch_emails_output = {}
                 else:
-                    st.success(f"Successfully generated {len(batch_emails_result)} emails in a single API call.")
+                    st.success(f"Successfully generated {len(batch_emails_result)} e-mails in a single API call.")
                     email_map = {email['candidate_name']: email for email in batch_emails_result}
                     st.session_state.batch_emails_output = email_map
 
@@ -439,3 +439,6 @@ if st.session_state.job_description_text:
                             "body": individual_email["body"]
                         }
                         st.rerun() 
+    # else:
+    #     st.subheader("Ready to start the matching process?")
+    #     st.warning("Please input the Job Description using one of the methods above to unlock the Resume Analyzer.")
